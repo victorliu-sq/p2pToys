@@ -1,34 +1,35 @@
 #include <cuda_runtime.h>
-#include <curand_kernel.h>
 #include <stdio.h>
-#include <stdlib.h>
 
-__global__ void DoubleLoad(volatile int *global_data, int *indices, int n,
-                           int *d_sum) {
+__global__ void DoubleLoad(int *global_data, int *indices, int n, int *d_sum) {
   int local;
   int sum = 0;
-  int idx;
   for (int i = 0; i < n; i++) {
-    idx = indices[i];
-    local = global_data[idx]; // Random access to global_data based on
-                              // shuffled indices
+    int index = indices[i];
+    local = global_data[index]; // Random access to global_data based on
+                                // shuffled indices
     sum += local;
   }
   *d_sum = sum;
 }
 
-__global__ void SingleLoad(volatile int *global_data, int *indices, int n,
-                           int *d_sum) {
+__global__ void LoadAndAtomic(int *global_data, int *indices, int n,
+                              int *d_sum) {
   int local;
   int sum = 0;
-  int idx;
+  // for (int i = 0; i < n; i++) {
+  //   local =
+  //       global_data[indices[i]]; // Linear access to global_data using
+  //       indices
+  //   sum += local;
+  // }
 
   for (int i = 0; i < n; i++) {
-    idx = indices[i];
-    local = global_data[idx]; // Random access to global_data based on
-                              // shuffled indices
-    // local = global_data[i]; // Linear access to global_data using indices
+    local = indices[i]; // Linear access to global_data using indices
+    // asm("ld.cg.s32 %0, [%1];" : "=r"(local) : "l"(global_data + i));
     sum += local;
+
+    atomicMin(&global_data[i], local);
   }
   *d_sum = sum;
 }
@@ -37,7 +38,7 @@ int main() {
   int *d_data, *d_indices, *d_sum;
   int *h_indices, sum;
 
-  for (int n = 1024; n <= 16 * 16 * 1024 * 1024; n <<= 1) {
+  for (int n = 1024; n <= 1024 * 1024; n <<= 1) {
     size_t bytes = n * sizeof(int);
 
     // Allocate memory on host and device
@@ -81,13 +82,13 @@ int main() {
     cudaMemcpy(d_indices, h_indices, bytes, cudaMemcpyHostToDevice);
     // Launch kernel for linear access and measure time
     cudaEventRecord(start);
-    SingleLoad<<<1, 1>>>(d_data, d_indices, n, d_sum);
+    LoadAndAtomic<<<1, 1>>>(d_data, d_indices, n, d_sum);
     cudaEventRecord(stop);
     cudaEventSynchronize(stop);
     cudaDeviceSynchronize();
     // cudaMemcpy(&sum, d_sum, sizeof(int), cudaMemcpyDeviceToHost);
     cudaEventElapsedTime(&milliseconds, start, stop);
-    printf("Single Access: Time taken to load %d integers: %.3f ms\n", n,
+    printf("Load and Atomic: Time taken to load %d integers: %.3f ms\n", n,
            milliseconds);
     printf("-------------------------------\n");
 
