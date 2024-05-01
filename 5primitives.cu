@@ -16,7 +16,7 @@ __global__ void load_ca(int *data, int n) {
 }
 
 // Kernel using Cache-Global (CG) load
-__global__ void load_cg(int *data, int n) {
+__global__ void load_cg(volatile int *data, int n) {
   if (threadIdx.x == 0) {
     int cur = 0;
     int sum = 0;
@@ -34,6 +34,7 @@ __global__ void atomic_cas_kernel(int *data, int n) {
   if (threadIdx.x == 0) {
     for (int i = 0; i < n; i++) {
       atomicCAS(&data[i], 0, 1); // Swap 0 to 1 at each index
+      __syncwarp();
     }
   }
 }
@@ -43,6 +44,7 @@ __global__ void atomic_min_kernel(int *data, int n) {
   if (threadIdx.x == 0) {
     for (int i = 0; i < n; i++) {
       atomicMin(&data[i], 1); // Set the minimum to 1 at each index
+      __syncwarp();
     }
   }
 }
@@ -52,12 +54,34 @@ __global__ void read_write_increment_kernel(int *data, int n) {
   if (threadIdx.x == 0) {
     for (int i = 0; i < n; i++) {
       data[i] = 1;
+      __syncwarp();
+      ;
     }
   }
 }
 
 void measureKernelPerformance(int *d_data, int n, void (*kernel)(int *, int),
                               const char *kernelName) {
+  cudaEvent_t start, stop;
+  cudaEventCreate(&start);
+  cudaEventCreate(&stop);
+  float milliseconds = 0;
+
+  cudaEventRecord(start);
+  kernel<<<1, 1>>>(d_data, n); // Launch with one block of one thread
+  cudaEventRecord(stop);
+  cudaEventSynchronize(stop);
+  cudaEventElapsedTime(&milliseconds, start, stop);
+
+  printf("%s kernel execution time: %.5f ms\n", kernelName, milliseconds);
+
+  cudaEventDestroy(start);
+  cudaEventDestroy(stop);
+}
+
+void measureKernelPerformanceV(int *d_data, int n,
+                               void (*kernel)(volatile int *, int),
+                               const char *kernelName) {
   cudaEvent_t start, stop;
   cudaEventCreate(&start);
   cudaEventCreate(&stop);
@@ -91,7 +115,7 @@ int main() {
 
   // Measure each kernel's performance
   measureKernelPerformance(d_data, n, load_ca, "Cache-All (CA)");
-  measureKernelPerformance(d_data, n, load_cg, "Cache-Global (CG)");
+  measureKernelPerformanceV(d_data, n, load_cg, "Cache-Global (CG)");
   measureKernelPerformance(d_data, n, atomic_cas_kernel, "Atomic CAS");
   measureKernelPerformance(d_data, n, atomic_min_kernel, "Atomic Min");
   measureKernelPerformance(d_data, n, read_write_increment_kernel,
