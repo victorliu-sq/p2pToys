@@ -25,16 +25,13 @@ __global__ void atomic_min_kernel(int *data, int n) {
 __global__ void read_write_increment_kernel(int *data, int n) {
   if (threadIdx.x == 0) {
     for (int i = 0; i < n; i++) {
-      // int value = data[i]; // Read data
-      // data[i] = value + 1; // Write data incremented by 1
-      data[i] = 1;
+      data[i] = 1; // Write data incremented by 1
     }
   }
 }
 
 int main() {
-  // const int n = 1024 * 1024; // Number of operations
-  const int n = 1000 * 1000; // Number of operations
+  const int n = 1024 * 1024; // Number of operations
   int *d_data;
   cudaMalloc(&d_data, n * sizeof(int));
   cudaMemset(d_data, 0, n * sizeof(int));

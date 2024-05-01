@@ -44,7 +44,8 @@ void measureKernelPerformance(int *d_data, int *d_result, int n,
 }
 
 int main() {
-  const int n = 1024 * 1024; // Number of elements
+  // const int n = 1024 * 1024; // Number of elements
+  const int n = 1000 * 1000; // Number of elements
   int *d_data, *d_result;
 
   // Allocate memory
