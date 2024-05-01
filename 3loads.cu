@@ -2,7 +2,7 @@
 #include <stdio.h>
 
 // Kernel using Cache-All (CA) load
-__global__ void load_ca(int *data, int *result) {
+__global__ void load_ca(int *data, int *result, int n) {
   int idx = threadIdx.x + blockIdx.x * blockDim.x;
   int w_rank = 0;
   // Cache-All load
