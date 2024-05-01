@@ -5,9 +5,8 @@
 __global__ void atomic_cas_kernel(int *data, int n) {
   if (threadIdx.x == 0) {
     for (int i = 0; i < n; i++) {
-      int old_value = data[i];
-      atomicCAS(&data[i], old_value,
-                old_value + 1); // Swap 0 to 1 at each index
+      // int old_value = data[i];
+      atomicCAS(&data[i], 0, 1); // Swap 0 to 1 at each index
     }
   }
 }
@@ -16,8 +15,8 @@ __global__ void atomic_cas_kernel(int *data, int n) {
 __global__ void atomic_min_kernel(int *data, int n) {
   if (threadIdx.x == 0) {
     for (int i = 0; i < n; i++) {
-      int old_value = data[i];
-      atomicMax(&data[i], old_value + 1); // Set the minimum to 1 at each index
+      // int old_value = data[i];
+      atomicMax(&data[i], 1); // Set the minimum to 1 at each index
     }
   }
 }
@@ -25,16 +24,9 @@ __global__ void atomic_min_kernel(int *data, int n) {
 // Kernel for sequential read and write increment
 __global__ void read_write_increment_kernel(int *data, int n) {
   if (threadIdx.x == 0) {
-    // for (int i = 0; i < n; i++) {
-    //   int value = data[i]; // Read data
-    //   data[i] = value + 1; // Write data incremented by 1
-    // }
     for (int i = 0; i < n; i++) {
-      int val = data[i];
-      // val += 1;
-      // data[i] = val;
-      // atomicAdd(&data[i], 1);
-      data[i] += 1;
+      int value = data[i]; // Read data
+      data[i] = value + 1; // Write data incremented by 1
     }
   }
 }

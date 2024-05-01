@@ -23,6 +23,18 @@ __global__ void load_cg(int *data, int *result, int n) {
   }
 }
 
+// Kernel using Global load
+__global__ void load_global(volatile int *data, int *result, int n) {
+  if (threadIdx.x == 0) {
+    int w_rank = 0;
+    for (int i = 0; i < n; i++) {
+      asm("ld.cv.s32 %0, [%1];" : "=r"(w_rank) : "l"(&data[i]));
+      // w_rank = data[i];
+      result[i] = w_rank;
+    }
+  }
+}
+
 void measureKernelPerformance(int *d_data, int *d_result, int n,
                               void (*kernel)(int *, int *, int),
                               const char *kernelName) {
@@ -61,6 +73,25 @@ int main() {
   // Measure each kernel's performance
   measureKernelPerformance(d_data, d_result, n, load_ca, "Cache-All (CA)");
   measureKernelPerformance(d_data, d_result, n, load_cg, "Cache-Global (CG)");
+  // measureKernelPerformance(d_data, d_result, n, load_global, "Global");
+
+  cudaEvent_t start, stop;
+  cudaEventCreate(&start);
+  cudaEventCreate(&stop);
+  float milliseconds = 0;
+
+  cudaEventRecord(start);
+  load_global<<<1, 1>>>(d_data, d_result,
+                        n); // Launch with one block of one thread
+
+  cudaEventRecord(stop);
+  cudaEventSynchronize(stop);
+  cudaEventElapsedTime(&milliseconds, start, stop);
+
+  printf("%s kernel execution time: %.5f ms\n", "load_global", milliseconds);
+
+  cudaEventDestroy(start);
+  cudaEventDestroy(stop);
 
   // Cleanup
   cudaFree(d_data);
