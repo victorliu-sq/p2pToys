@@ -31,22 +31,23 @@ __global__ void load_cg(volatile int *data, int n) {
 
 // Kernel using atomicCAS to perform operations on different memory locations
 __global__ void atomic_cas_kernel(int *data, int n) {
-  if (threadIdx.x == 0) {
-    for (int i = 0; i < n; i++) {
-      atomicCAS(&data[i], 0, 1); // Swap 0 to 1 at each index
-      __syncwarp();
-    }
+  int sum = 0;
+  for (int i = 0; i < n; i++) {
+    sum += atomicCAS(&data[i], 0, 1); // Swap 0 to 1 at each index
+    // __syncwarp();
   }
+  data[0] = sum;
 }
 
 // Kernel using atomicMin to perform operations on different memory locations
 __global__ void atomic_min_kernel(int *data, int n) {
-  if (threadIdx.x == 0) {
-    for (int i = 0; i < n; i++) {
-      atomicMin(&data[i], 1); // Set the minimum to 1 at each index
-      __syncwarp();
-    }
+  int sum = 0;
+  for (int i = 0; i < n; i++) {
+    sum += atomicMin(&data[i], 1); // Set the minimum to 1 at each index
+    // __syncwarp();
   }
+
+  data[0] = sum;
 }
 
 // Kernel for sequential read and write increment
@@ -55,7 +56,6 @@ __global__ void read_write_increment_kernel(int *data, int n) {
     for (int i = 0; i < n; i++) {
       data[i] = 1;
       __syncwarp();
-      ;
     }
   }
 }
@@ -100,7 +100,7 @@ void measureKernelPerformanceV(int *d_data, int n,
 }
 
 int main() {
-  const int n = 1000 * 1000; // Number of elements
+  const int n = 1000 * 1000 * 10; // Number of elements
   int *d_data, *d_result;
 
   // Allocate memory
