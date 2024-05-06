@@ -113,14 +113,14 @@ __global__ void sumWOFence(const float *array, unsigned int N,
 }
 
 int main() {
-  const int N = 1024;        // Size of the array
+  const int N = 1024 * 256;  // Size of the array
   const int blockSize = 256; // Threads per block
   const int numBlocks = (N + blockSize - 1) / blockSize;
 
   float *array;
   float *d_array;
-  volatile float *d_result_with_fence;
-  volatile float *d_result_without_fence;
+  float *d_result_with_fence;
+  float *d_result_without_fence;
   float result_with_fence, result_without_fence;
 
   // Allocate host and device memory
@@ -134,6 +134,7 @@ int main() {
   cudaMalloc(&d_result_without_fence, numBlocks * sizeof(float));
   cudaMemcpy(d_array, array, N * sizeof(float), cudaMemcpyHostToDevice);
 
+  int it = 1;
   do {
     cudaMemset((void *)d_result_with_fence, 0, numBlocks * sizeof(float));
     cudaMemset((void *)d_result_without_fence, 0, numBlocks * sizeof(float));
@@ -145,11 +146,13 @@ int main() {
         d_array, N, d_result_without_fence);
 
     // Copy results back to host
-    cudaMemcpyFromSymbol(&result_with_fence, d_result_with_fence, sizeof(float),
-                         0, cudaMemcpyDeviceToHost);
-    cudaMemcpyFromSymbol(&result_without_fence, d_result_without_fence,
-                         sizeof(float), 0, cudaMemcpyDeviceToHost);
-
+    cudaMemcpy(&result_with_fence, d_result_with_fence, sizeof(float),
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(&result_without_fence, d_result_without_fence, sizeof(float),
+               cudaMemcpyDeviceToHost);
+    printf("current iteration is %d, sumWFence: %f, sumWOFence: %f\n", it,
+           result_with_fence, result_without_fence);
+    it++;
   } while (result_with_fence == result_without_fence);
 
   printf("Discrepancy detected: With Fence = %f, Without Fence = %f\n",
